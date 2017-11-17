@@ -9,7 +9,9 @@ notMap = {
     '>' : '<=',
     '<' : '>=',
     '>=' : '<',
-    '<=' : '>'
+    '<=' : '>',
+    '|' : '&',
+    '&' : '|'
 }
 
 dataDict = dict()
@@ -31,6 +33,13 @@ def is_number(s):
         pass
 
     return False
+
+def checkStackEnd(stk):
+    while len(stk) > 0:
+        if stk[-1] in ["&", "|", "~"]:
+            stk.pop()
+        else:
+            break
 
 def conditionToPandas(condition, Final = False):
     assert len(condition) == 3
@@ -55,6 +64,24 @@ def conditionToPandas(condition, Final = False):
     expression += ')'
 
     return expression
+
+def checkNotCondition(condition):
+    index = 0
+    while index < len(condition):
+        con = condition[index]
+        if con == '~':
+            if condition[index + 1] == "(":
+                pos = index
+                while condition[pos] != ')':
+                    if condition[pos] in notMap:
+                        condition[pos] = notMap[condition[pos]]
+                    pos += 1
+            else:
+                condition[index + 2] = notMap[condition[index + 2]]
+            del condition[index] #delete not
+
+        index += 1
+
 
 def handleCondition(condition):
     for i in range(len(condition)):
@@ -213,17 +240,16 @@ while True:
     if conPos != -1:
         condition = sqlList[conPos:]
         handleCondition(condition)
+        checkNotCondition(condition)
+        #print(condition)
         if "|" in condition:
             IsOr = True
-        checkNOT = False
-        for con in condition:
+        for i in range(len(condition)):
+            con = condition[i]
             if con == '|':
                 if len(stk) >= 3:
                     conList = [stk.pop(), stk.pop(), stk.pop()]
-                    if len(stk) > 0 and stk[-1] == '~':
-                        stk.pop()
-                        conList[1] = notMap[conList[1]]
-                        conList.reverse()
+                    conList.reverse()
                     expr = conditionToPandas(conList, True)
                     stk.append(expr)
                     stk.append(con)
@@ -234,11 +260,9 @@ while True:
                     second = stk.pop()
                     oper = stk.pop()
                     first = stk.pop()
-                    if len(stk) > 0 and stk[-1] == '~':
-                        stk.pop()
-                        oper = notMap[oper]
                     if not IsOr and (first in isAttribute and second not in isAttribute):
                         expr = conditionToPandas([first, oper, second])
+                        print("<<filer>>", expr)
                         for t in tableprefixList:
                             if first in attrDict[t]:
                                 dataDict[t] = dataDict[t][eval(expr)]
@@ -250,33 +274,44 @@ while True:
                 else:
                     stk.append(con)
             elif con == '(':
-                if len(stk) > 0 and stk[-1] == '~':
-                    checkNOT = True
-                    stk.pop()
-                append(con)
+                stk.append(con)
             elif con == ')':
                 if stk[-1] != ')':
                     conList = [stk.pop(), stk.pop(), stk.pop()]
                     conList.reverse()
-                    expr = conditionToPandas(conList)
-                    stk.append(expr)
+                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+                        expr = conditionToPandas(conList)
+                        print("<<filer>>", expr)
+                        for t in tableprefixList:
+                            if conList[0] in attrDict[t]:
+                                dataDict[t] = dataDict[t][eval(expr)]
+                                break
+                        checkStackEnd(stk) #check end symbol
+                    else:
+                        expr = conditionToPandas(conList, True)
+                        stk.append(expr)
                 eList = []
                 e = stk.pop()
+                print(e)
                 while e != '(':
                     eList.append(e)
-                    if e in notMap and checkNOT:
-                        e = notMap[e]
                     e = stk.pop()
                 eList.reverse()
-                stk.append('( ' +  " ".join(eList) + ' )')
-                checkNOT = False
+                if len(eList) != 0:
+                    stk.append('( ' +  " ".join(eList) + ' )')
+
             else:
                 stk.append(con)
+
         if len(stk) >= 3:
             conList = [stk.pop(), stk.pop(), stk.pop()]
             conList.reverse()
+            if len(stk) > 0 and stk[-1] == '~':
+                stk.pop()
+                conList[1] = notMap[conList[1]]
             if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
                 expr = conditionToPandas(conList)
+                print("<<filer>>", expr)
                 for t in tableprefixList:
                     if conList[0] in attrDict[t]:
                         dataDict[t] = dataDict[t][eval(expr)]
@@ -284,11 +319,9 @@ while True:
             else:
                 expr = conditionToPandas(conList, True)
                 stk.append(expr)
-        #check end symbol
-        while len(stk) > 0 and (stk[-1] == '&' or stk[-1] == '|'):
-            stk.pop()
+        checkStackEnd(stk) #check end symbol
         cond_str = " ".join(stk)
-        print("Query: ", cond_str)
+        print("[[Query]]: ", cond_str)
 
     ## JOIN
     #print(dataDict.values())
@@ -301,8 +334,7 @@ while True:
         except:
             df_result = df
 
-    if len(cond_str) != '':
-        #s = conditionToPandas(" ".join(stk), True)
+    if cond_str != "":
         df_result = df_result[eval(cond_str)]
 
     #SELECT: Get the column(attributes) from file
@@ -323,13 +355,18 @@ while True:
         print("--- %s seconds ---" % (time.time() - start_time))
     #break
 
-    # select Date from nasdaq.csv where Open <= 5000 or High < 5200
-    # select Date from nasdaq.csv, euro50.csv
-    # select * from nasdaq.csv, euro50.csv
-    # select Date from nasdaq.csv where Open = 4000
-    # TODO select * from test1.csv where NOT String = 'hui'
-    # select * from test1.csv where String like '_hui%'
-    # SELECT * FROM movies.csv WHERE title_year = 1999
-    # SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
-    # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7
-    # SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1, movies.csv M2, movies.csv M3 WHERE M1.director_name = M2.director_name AND M1.director_name = M3.director_name AND M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10
+# select Date from nasdaq.csv where Open <= 5000 or High < 5200
+# select Date from nasdaq.csv, euro50.csv
+# select * from nasdaq.csv, euro50.csv
+# select Date from nasdaq.csv where Open = 4000
+# TODO select * from test1.csv where NOT String = 'hui'
+# select * from test1.csv where String like '_hui%'
+# SELECT * FROM movies.csv WHERE title_year = 1999
+# SELECT title_year FROM movies.csv WHERE NOT title_year = 1999
+# SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+# SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7
+# SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE ( M.movie_title = A.Film AND M.imdb_score < 7 )
+# SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  M.movie_title = A.Film AND NOT M.imdb_score < 7
+# SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  ( M.movie_title = A.Film ) AND NOT ( M.imdb_score < 7 AND  M.title_year > 2000 )
+# SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  ( M.movie_title = A.Film ) AND NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
+# SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1, movies.csv M2, movies.csv M3 WHERE M1.director_name = M2.director_name AND M1.director_name = M3.director_name AND M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10
