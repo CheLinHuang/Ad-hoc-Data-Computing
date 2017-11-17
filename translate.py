@@ -175,6 +175,7 @@ while True:
     print('tableprefixList',tableprefixList)
     print('fileList',fileList)
     isAttribute = []
+    joinCon = []
 
     if len(fileList) == 1:
         df_result = pd.read_csv(fileList[0]) #, assume_missing=True)#, keep_default_na=False)
@@ -245,6 +246,7 @@ while True:
         if "|" in condition:
             IsOr = True
         for i in range(len(condition)):
+            #print(stk)
             con = condition[i]
             if con == '|':
                 if len(stk) >= 3:
@@ -271,6 +273,8 @@ while True:
                         expr = conditionToPandas([first, oper, second], True)
                         stk.append(expr)
                         stk.append(con)
+                        if not IsOr and len(joinCon) == 0:
+                            joinCon.append("".join([first, oper, second]))
                 else:
                     stk.append(con)
             elif con == '(':
@@ -290,9 +294,10 @@ while True:
                     else:
                         expr = conditionToPandas(conList, True)
                         stk.append(expr)
+                        if not IsOr and len(joinCon) == 0:
+                            joinCon.append("".join(conList))
                 eList = []
                 e = stk.pop()
-                print(e)
                 while e != '(':
                     eList.append(e)
                     e = stk.pop()
@@ -319,6 +324,8 @@ while True:
             else:
                 expr = conditionToPandas(conList, True)
                 stk.append(expr)
+                if not IsOr and len(joinCon) == 0:
+                    joinCon.append("".join(conList))
         checkStackEnd(stk) #check end symbol
         cond_str = " ".join(stk)
         print("[[Query]]: ", cond_str)
