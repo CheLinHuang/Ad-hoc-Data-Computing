@@ -270,11 +270,13 @@ while True:
                                 dataDict[t] = dataDict[t][eval(expr)]
                                 break
                     else:
-                        expr = conditionToPandas([first, oper, second], True)
-                        stk.append(expr)
-                        stk.append(con)
                         if not IsOr and len(joinCon) == 0:
                             joinCon.append("".join([first, oper, second]))
+                        else:
+                            expr = conditionToPandas([first, oper, second], True)
+                            stk.append(expr)
+                            stk.append(con)
+
                 else:
                     stk.append(con)
             elif con == '(':
@@ -292,10 +294,12 @@ while True:
                                 break
                         checkStackEnd(stk) #check end symbol
                     else:
-                        expr = conditionToPandas(conList, True)
-                        stk.append(expr)
                         if not IsOr and len(joinCon) == 0:
                             joinCon.append("".join(conList))
+                        else:
+                            expr = conditionToPandas(conList, True)
+                            stk.append(expr)
+
                 eList = []
                 e = stk.pop()
                 while e != '(':
@@ -322,24 +326,52 @@ while True:
                         dataDict[t] = dataDict[t][eval(expr)]
                         break
             else:
-                expr = conditionToPandas(conList, True)
-                stk.append(expr)
                 if not IsOr and len(joinCon) == 0:
                     joinCon.append("".join(conList))
+                else:
+                    expr = conditionToPandas(conList, True)
+                    stk.append(expr)
         checkStackEnd(stk) #check end symbol
         cond_str = " ".join(stk)
         print("[[Query]]: ", cond_str)
 
     ## JOIN
     #print(dataDict.values())
-    for df in dataDict.values():
-        df = (df).assign(key=0)
-        print("--- %s seconds ---" % (time.time() - start_time))
-        try:
-            df_result = df_result.merge(df, how='outer', on='key')
-            # df_result.drop('key', 1, inplace=True)
-        except:
-            df_result = df
+    if len(joinCon) != 0:
+        print(joinCon)
+        [left, right] = joinCon[0].split('==')
+        for select in colList:
+            if select in right or right in select:
+                temp = right
+                right = left
+                left = temp
+        for key, value in attrDict.items():
+            if right in value:
+                coll = list(dataDict[key].columns)
+                for i in range(len(coll)):
+                    if coll[i] == right:
+                        coll[i] = left
+                        break
+                dataDict[key].columns = coll
+        for df in dataDict.values():
+            #df = (df).assign(key=0)
+            print(df.columns)
+            print("--- %s seconds ---" % (time.time() - start_time))
+            try:
+                df_result = df_result.merge(df, how='inner', on=left)
+                # df_result.drop('key', 1, inplace=True)
+            except:
+                df_result = df
+
+    else:
+        for df in dataDict.values():
+            df = (df).assign(key=0)
+            print("--- %s seconds ---" % (time.time() - start_time))
+            try:
+                df_result = df_result.merge(df, how='outer', on='key')
+                # df_result.drop('key', 1, inplace=True)
+            except:
+                df_result = df
 
     if cond_str != "":
         df_result = df_result[eval(cond_str)]
@@ -358,7 +390,7 @@ while True:
                     if prev + col in columns:
                         result_attr.append(prev + col)
                         break
-        print(df_result[result_attr])
+        print(df_result[result_attr].dropna())
         print("--- %s seconds ---" % (time.time() - start_time))
     #break
 
