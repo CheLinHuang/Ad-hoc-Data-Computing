@@ -1,6 +1,19 @@
 import pandas as pd
 import numpy as np
+import time
 import re
+
+notMap = {
+    '==' : '!=',
+    '!=' : '==',
+    '>' : '<=',
+    '<' : '>=',
+    '>=' : '<',
+    '<=' : '>'
+}
+
+dataDict = dict()
+attrDict = dict()
 
 
 def is_number(s):
@@ -19,9 +32,61 @@ def is_number(s):
 
     return False
 
+def conditionToPandas(condition, Final = False):
+    assert len(condition) == 3
+    expression = '('
+    if condition[0][0] == '(':
+        expression += condition[0]
+    elif condition[2] in isAttribute or condition[2][0] == '(' or Final:
+        expression += 'df_result[\'' + condition[0] + '\']'
+    else:
+        for i in range(len(tableprefixList)):
+            if condition[0] in attrDict[tableprefixList[i]]:
+                expression += 'dataDict[\'' + tableprefixList[i] + '\'][\'' + condition[0] + '\']'
+
+    expression += condition[1]
+
+    if is_number(condition[2]) or condition[1] == '.str.match(' or condition[2][0] == '(':
+        expression += condition[2]
+    elif condition[2] in isAttribute:
+        expression += 'df_result[\'' + condition[2] + '\']'
+    else:
+        expression += '\'' + condition[2] + '\''
+    expression += ')'
+
+    return expression
+
+def handleCondition(condition):
+    for i in range(len(condition)):
+        con = condition[i]
+        if con == '=':
+            condition[i] = '=='
+        elif con == '<>':
+            condition[i] = '!='
+        elif con == 'or' or con == 'OR':
+            condition[i] = '|'
+        elif con == 'and' or con == 'AND':
+            condition[i] = '&'
+        elif con == 'not' or con == 'NOT':
+            condition[i] = '~'
+        elif con == 'like' or con == 'LIKE':
+            condition[i] = '.str.match('
+            #if condition[i+1][1] != '%':
+            condition[i + 1] = '\'^' + condition[i + 1][1:]
+            #if condition[i + 1][len(condition[i + 1])-2] != '%':
+            condition[i + 1] = condition[i + 1][:len(condition[i + 1])-1] + '$\', na=False)'
+            condition[i + 1] = condition[i + 1].replace('%', '.*')
+            condition[i + 1] = condition[i + 1].replace('_', '.')
+    #print(expression)
+    #print(eval(expression))
+    #result[eval(expression)]
+    #return expression
+
+
 while True:
     df_result = pd.DataFrame({'A' : []})
-    command = input("Type the your SQL and press Enter.")
+    command = input("Type the your SQL and press Enter: \n>")
+    start_time = time.time()
     #command = 'SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7'
     if len(command) < 1:  # check prevents a crash when indexing to 1st character
        continue
@@ -85,88 +150,160 @@ while True:
     isAttribute = []
 
     if len(fileList) == 1:
-        df_result = pd.read_csv(fileList[0])#, keep_default_na=False)
+        df_result = pd.read_csv(fileList[0]) #, assume_missing=True)#, keep_default_na=False)
         isAttribute = set(df_result.columns)
+        attrDict[tableprefixList[0]] = set(list(df_result.columns))
+        dataDict[tableprefixList[0]] = df_result
 
     else:
         for i in range(len(fileList)):
-
-            df1 = pd.read_csv(fileList[i])#, keep_default_na=False)
-
+            df = pd.read_csv(fileList[i]) #, assume_missing=True)
             if colList != ['*']:
                 required_columns = set()
-                columns = df1.columns
-                # print(columns)
+                cols = df.columns
                 for attr in attributeList:
-                    if attr in columns:
+                    if attr in cols:
                         required_columns.add(attr)
                         isAttribute.append(attr)
-                    if '.' in attr and attr.split('.')[1] in columns:
+                    if '.' in attr and attr.split('.')[1] in cols:
                         required_columns.add(attr.split('.')[1])
                         isAttribute.append(attr)
+                    elif '+' in attr and attr.split('+')[0] in cols:
+                        required_columns.add(attr.split('+')[0])
+                        isAttribute.append(attr)
+                    elif '+' in attr and attr.split('+')[1] in cols:
+                        required_columns.add(attr.split('+')[1])
+                        isAttribute.append(attr)
+                    elif '-' in attr and attr.split('-')[0] in cols:
+                        required_columns.add(attr.split('-')[0])
+                        isAttribute.append(attr)
+                    elif '-' in attr and attr.split('-')[1] in cols:
+                        required_columns.add(attr.split('-')[1])
+                        isAttribute.append(attr)
+                    elif '*' in attr and attr.split('*')[0] in cols:
+                        required_columns.add(attr.split('*')[0])
+                        isAttribute.append(attr)
+                    elif '*' in attr and attr.split('*')[1] in cols:
+                        required_columns.add(attr.split('*')[1])
+                        isAttribute.append(attr)
+                    elif '/' in attr and attr.split('/')[0] in cols:
+                        required_columns.add(attr.split('/')[0])
+                        isAttribute.append(attr)
+                    elif '/' in attr and attr.split('/')[1] in cols:
+                        required_columns.add(attr.split('/')[1])
+                        isAttribute.append(attr)
+
                 # print(required_columns)
-                df1 = df1[list(required_columns)]
+                df = df[list(required_columns)]
             if len(renametableList) > 0:
-                columns = list(df1.columns)
-                for j in range(len(columns)):
-                    columns[j] = tableprefixList[i] + columns[j]
-                df1.columns = columns
-            df1['key'] = 0
-            if df_result.empty:
-                df_result = df1
-            else:
-                df_result = df_result.merge(df1, how = 'outer', on = 'key')
-                #df_result.drop('key', 1, inplace=True)
+                cols = list(df.columns)
+                for j in range(len(cols)):
+                    cols[j] = tableprefixList[i] + cols[j]
+                df.columns = cols
+            attrDict[tableprefixList[i]] = set(list(df.columns))
+            dataDict[tableprefixList[i]] = df
 
     print('isAttribute', isAttribute)
     print(list(df_result.columns))
 
     #WHERE: Deal with the conditions
+    stk = []
+    cond_str = ''
+    IsOr = False
     if conPos != -1:
         condition = sqlList[conPos:]
-        for i in range(len(condition)):
-            con = condition[i]
-            if con == '=':
-                condition[i] = '=='
-            elif con == '<>':
-                condition[i] = '!='
-            elif con == 'or' or con == 'OR':
-                condition[i] = '|'
-            elif con == 'and' or con == 'AND':
-                condition[i] = '&'
-            elif con == 'not' or con == 'NOT':
-                condition[i] = '~'
-            elif con == 'like' or con == 'LIKE':
-                condition[i] = '.str.match('
-                #if condition[i+1][1] != '%':
-                condition[i + 1] = '\'^' + condition[i + 1][1:]
-                #if condition[i + 1][len(condition[i + 1])-2] != '%':
-                condition[i + 1] = condition[i + 1][:len(condition[i + 1])-1] + '$\', na=False)'
-                condition[i + 1] = condition[i + 1].replace('%', '.*')
-                condition[i + 1] = condition[i + 1].replace('_', '.')
-        expression = ''
-        count = 0
-        for cc in range(len(condition)):
-            c = condition[cc]
-            if c == '|' or c == '&':
-                expression += (')' + c)
-                count = 0
-            elif c in isAttribute:
-                if count == 0:
-                    expression += '(df_result[\'' + c + '\']'
+        handleCondition(condition)
+        if "|" in condition:
+            IsOr = True
+        checkNOT = False
+        for con in condition:
+            if con == '|':
+                if len(stk) >= 3:
+                    conList = [stk.pop(), stk.pop(), stk.pop()]
+                    if len(stk) > 0 and stk[-1] == '~':
+                        stk.pop()
+                        conList[1] = notMap[conList[1]]
+                        conList.reverse()
+                    expr = conditionToPandas(conList, True)
+                    stk.append(expr)
+                    stk.append(con)
                 else:
-                    expression += 'df_result[\'' + c + '\']'
-                count += 1
+                    stk.append(con)
+            elif con == '&':
+                if len(stk) >= 3:
+                    second = stk.pop()
+                    oper = stk.pop()
+                    first = stk.pop()
+                    if len(stk) > 0 and stk[-1] == '~':
+                        stk.pop()
+                        oper = notMap[oper]
+                    if not IsOr and (first in isAttribute and second not in isAttribute):
+                        expr = conditionToPandas([first, oper, second])
+                        for t in tableprefixList:
+                            if first in attrDict[t]:
+                                dataDict[t] = dataDict[t][eval(expr)]
+                                break
+                    else:
+                        expr = conditionToPandas([first, oper, second], True)
+                        stk.append(expr)
+                        stk.append(con)
+                else:
+                    stk.append(con)
+            elif con == '(':
+                if len(stk) > 0 and stk[-1] == '~':
+                    checkNOT = True
+                    stk.pop()
+                append(con)
+            elif con == ')':
+                if stk[-1] != ')':
+                    conList = [stk.pop(), stk.pop(), stk.pop()]
+                    conList.reverse()
+                    expr = conditionToPandas(conList)
+                    stk.append(expr)
+                eList = []
+                e = stk.pop()
+                while e != '(':
+                    eList.append(e)
+                    if e in notMap and checkNOT:
+                        e = notMap[e]
+                    e = stk.pop()
+                eList.reverse()
+                stk.append('( ' +  " ".join(eList) + ' )')
+                checkNOT = False
             else:
-                if count == 1 or is_number(c) or (cc > 0 and condition[cc-1] == '.str.match('):
-                    expression += c
-                else:
-                    expression += '\'' + c + '\''
-                count += 1
-        expression += ')'
-        print(expression)
-        #print(eval(expression))
-        df_result = df_result[eval(expression)]
+                stk.append(con)
+        if len(stk) >= 3:
+            conList = [stk.pop(), stk.pop(), stk.pop()]
+            conList.reverse()
+            if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+                expr = conditionToPandas(conList)
+                for t in tableprefixList:
+                    if conList[0] in attrDict[t]:
+                        dataDict[t] = dataDict[t][eval(expr)]
+                        break
+            else:
+                expr = conditionToPandas(conList, True)
+                stk.append(expr)
+        #check end symbol
+        while len(stk) > 0 and (stk[-1] == '&' or stk[-1] == '|'):
+            stk.pop()
+        cond_str = " ".join(stk)
+        print("Query: ", cond_str)
+
+    ## JOIN
+    #print(dataDict.values())
+    for df in dataDict.values():
+        df = (df).assign(key=0)
+        print("--- %s seconds ---" % (time.time() - start_time))
+        try:
+            df_result = df_result.merge(df, how='outer', on='key')
+            # df_result.drop('key', 1, inplace=True)
+        except:
+            df_result = df
+
+    if len(cond_str) != '':
+        #s = conditionToPandas(" ".join(stk), True)
+        df_result = df_result[eval(cond_str)]
 
     #SELECT: Get the column(attributes) from file
     if colList == ['*']:
@@ -183,6 +320,7 @@ while True:
                         result_attr.append(prev + col)
                         break
         print(df_result[result_attr])
+        print("--- %s seconds ---" % (time.time() - start_time))
     #break
 
     # select Date from nasdaq.csv where Open <= 5000 or High < 5200
