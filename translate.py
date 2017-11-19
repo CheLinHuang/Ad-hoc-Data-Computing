@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import time
+import sys
 import re
 
 notMap = {
@@ -70,6 +71,9 @@ def checkNotCondition(condition):
     while index < len(condition):
         con = condition[index]
         if con == '~':
+            if index == len(condition)-1:
+                del condition[index]
+                break
             if condition[index + 1] == "(":
                 pos = index
                 while condition[pos] != ')':
@@ -104,10 +108,6 @@ def handleCondition(condition):
             condition[i + 1] = condition[i + 1][:len(condition[i + 1])-1] + '$\', na=False)'
             condition[i + 1] = condition[i + 1].replace('%', '.*')
             condition[i + 1] = condition[i + 1].replace('_', '.')
-    #print(expression)
-    #print(eval(expression))
-    #result[eval(expression)]
-    #return expression
 
 
 while True:
@@ -220,7 +220,6 @@ while True:
                     elif '/' in attr and attr.split('/')[1] in cols:
                         required_columns.add(attr.split('/')[1])
                         isAttribute.append(attr)
-
                 # print(required_columns)
                 df = df[list(required_columns)]
             if len(renametableList) > 0:
@@ -230,14 +229,17 @@ while True:
                 df.columns = cols
             attrDict[tableprefixList[i]] = set(list(df.columns))
             dataDict[tableprefixList[i]] = df
+            isAttribute.extend(list(df.columns))
 
     print('isAttribute', isAttribute)
     print(list(df_result.columns))
 
     #WHERE: Deal with the conditions
     stk = []
-    cond_str = ''
+    condRes = []
     IsOr = False
+    conList = []
+    lastOper = ""
     if conPos != -1:
         condition = sqlList[conPos:]
         handleCondition(condition)
@@ -246,93 +248,90 @@ while True:
         if "|" in condition:
             IsOr = True
         for i in range(len(condition)):
-            #print(stk)
             con = condition[i]
             if con == '|':
-                if len(stk) >= 3:
-                    conList = [stk.pop(), stk.pop(), stk.pop()]
-                    conList.reverse()
+                if len(conList) == 3: #TODO also check attr
                     expr = conditionToPandas(conList, True)
-                    stk.append(expr)
-                    stk.append(con)
+                    if lastOper != "":
+                        condRes.append(lastOper)
+                    condRes.append(expr)
+                    lastOper = "|"
+                    conList.clear()
                 else:
-                    stk.append(con)
+                    lastOper = "|"
+                    if i == 0 or condition[i-1] != ')':
+                        sys.exit("illegal command")
             elif con == '&':
-                if len(stk) >= 3:
-                    second = stk.pop()
-                    oper = stk.pop()
-                    first = stk.pop()
-                    if not IsOr and (first in isAttribute and second not in isAttribute):
-                        expr = conditionToPandas([first, oper, second])
-                        print("<<filer>>", expr)
-                        for t in tableprefixList:
-                            if first in attrDict[t]:
-                                dataDict[t] = dataDict[t][eval(expr)]
-                                break
-                    else:
-                        if not IsOr and len(joinCon) == 0:
-                            joinCon.append("".join([first, oper, second]))
-                        else:
-                            expr = conditionToPandas([first, oper, second], True)
-                            stk.append(expr)
-                            stk.append(con)
-
-                else:
-                    stk.append(con)
-            elif con == '(':
-                stk.append(con)
-            elif con == ')':
-                if stk[-1] != ')':
-                    conList = [stk.pop(), stk.pop(), stk.pop()]
-                    conList.reverse()
+                if len(conList) == 3: #TODO also check attr
                     if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
                         expr = conditionToPandas(conList)
-                        print("<<filer>>", expr)
+                        print("<<filter>>", expr)
                         for t in tableprefixList:
                             if conList[0] in attrDict[t]:
                                 dataDict[t] = dataDict[t][eval(expr)]
                                 break
-                        checkStackEnd(stk) #check end symbol
                     else:
-                        if not IsOr and len(joinCon) == 0:
-                            joinCon.append("".join(conList))
-                        else:
-                            expr = conditionToPandas(conList, True)
-                            stk.append(expr)
-
-                eList = []
-                e = stk.pop()
-                while e != '(':
-                    eList.append(e)
-                    e = stk.pop()
-                eList.reverse()
-                if len(eList) != 0:
-                    stk.append('( ' +  " ".join(eList) + ' )')
-
+                        expr = conditionToPandas(conList, True)
+                        if lastOper != "":
+                            condRes.append(lastOper)
+                        condRes.append(expr)
+                        lastOper = "&"
+                    conList.clear()
+                else:
+                    lastOper = "&"
+                    if i == 0 or condition[i-1] != ')':
+                        sys.exit("illegal command")
+            elif con == '(':
+                stk.append(list(condRes))
+                stk.append(lastOper)
+                condRes.clear()
+                conList.clear()
+                lastOper = ""
+            elif con == ')':
+                if len(conList) == 3:
+                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+                        expr = conditionToPandas(conList)
+                        print("<<filter>>", expr)
+                        for t in tableprefixList:
+                            if conList[0] in attrDict[t]:
+                                dataDict[t] = dataDict[t][eval(expr)]
+                                break
+                    else:
+                        expr = conditionToPandas(conList, True)
+                        if lastOper != "":
+                            condRes.append(lastOper)
+                        condRes.append(expr)
+                lastOper = ""
+                conList.clear()
+                #print(stk)
+                o = stk.pop()
+                lastCond = stk.pop()
+                if len(condRes) != 0:
+                    lastCond.append(o)
+                    lastCond.append('(')
+                    lastCond.extend(condRes)
+                    lastCond.append(')')
+                condRes = lastCond
             else:
-                stk.append(con)
-
-        if len(stk) >= 3:
-            conList = [stk.pop(), stk.pop(), stk.pop()]
-            conList.reverse()
-            if len(stk) > 0 and stk[-1] == '~':
-                stk.pop()
-                conList[1] = notMap[conList[1]]
+                conList.append(con)
+        #end of command
+        if len(conList) == 3: #TODO also check attr
             if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
                 expr = conditionToPandas(conList)
-                print("<<filer>>", expr)
+                print("<<filter>>", expr)
                 for t in tableprefixList:
                     if conList[0] in attrDict[t]:
                         dataDict[t] = dataDict[t][eval(expr)]
                         break
             else:
-                if not IsOr and len(joinCon) == 0:
-                    joinCon.append("".join(conList))
-                else:
-                    expr = conditionToPandas(conList, True)
-                    stk.append(expr)
-        checkStackEnd(stk) #check end symbol
-        cond_str = " ".join(stk)
+                expr = conditionToPandas(conList, True)
+                if lastOper != "":
+                    condRes.append(lastOper)
+                condRes.append(expr)
+                lastOper = ""
+            conList.clear()
+
+        cond_str = " ".join(condRes)
         print("[[Query]]: ", cond_str)
 
     ## JOIN
