@@ -15,9 +15,6 @@ notMap = {
     '&' : '|'
 }
 
-dataDict = dict()
-attrDict = dict()
-
 
 def is_number(s):
     try:
@@ -87,7 +84,7 @@ def checkNotCondition(condition):
         index += 1
 
 
-def handleCondition(condition):
+def  handleCondition(condition):
     for i in range(len(condition)):
         con = condition[i]
         if con == '=':
@@ -121,6 +118,9 @@ while True:
     colList = sqlList[1].split(',')
     attributeList = list(colList)
     # print(colList)
+    dataDict = dict()
+    attrDict = dict()
+    joinCon = []
 
     conPos = -1
     if 'WHERE' in sqlList:
@@ -137,6 +137,7 @@ while True:
         tableList = sqlList[3:]
     else:
         tableList = sqlList[3:conPos - 1]
+    tableList1 = list(tableList)
     tableposList = []
     for i in range(len(tableList)):
         if '.csv' in tableList[i]:
@@ -149,18 +150,50 @@ while True:
                 tableList[i] = tableList[i].replace(',','.')
             else:
                 tableList[i] += '.'
-    tableposList.append(conPos-4) #append the position of WHERE as the last value in list
+    #tableposList.append(conPos-4) #append the position of WHERE as the last value in list
 
     #find the tables needed to be renamed.
+    #print(tableList1)
+    #TODO: only support inner join now
+    joinPos = -1
+    if 'JOIN' in tableList1:
+        joinPos = tableList1.index('JOIN')
+    elif 'join' in tableList1:
+        joinPos = tableList1.index('join')
+
     renametableList = [] #Save the tables needed to be renamed
     tableprefixList = [] #Save the prefix of each table
+    if joinPos != -1:
+        if tableList1[1].upper() != "JOIN":
+            renametableList.append(tableList[0])
+        #find all position of JOIN
+        jlist = [index for index, value in enumerate(tableList1) if value.upper() == 'JOIN']
+        #find all position of ON
+        olist = [index for index, value in enumerate(tableList1) if value.upper() == 'ON']
+        if len(jlist) != len(olist):
+            sys.exit("illegal command")
+        for k in range(len(jlist)):
+            if olist[k] - jlist[k] == 3:
+                renametableList.append(tableList[jlist[k]+1])
+            #joinCon List
+            idx = olist[k] + 1 #start of join expression
+            if idx + 2 < len(tableList1):
+                t = tableList1[idx : idx + 3]
+                handleCondition(t)
+                joinCon.append("".join(t))
+            else:
+                sys.exit("illegal command")
+    else:
+        if len(tableList) > 1:
+            renametableList.append(tableList[0])
+    """
     for i in range(len(tableposList)):
         if i > 0 and tableposList[i]-tableposList[i-1] == 2:
             renametableList.append(tableList[tableposList[i-1]])
-
+    """
     #Save the prefix of each table(renamed or not)
     j = 0
-    for i in range(len(tableposList)-1):
+    for i in range(len(tableposList)):
 
         if j<len(renametableList) and tableList[tableposList[i]] == renametableList[j]:
             tableprefixList.append(tableList[tableposList[i]+1])
@@ -174,8 +207,8 @@ while True:
     print('renametableList',renametableList)
     print('tableprefixList',tableprefixList)
     print('fileList',fileList)
+    print('joinCon: ', joinCon)
     isAttribute = []
-    joinCon = []
 
     if len(fileList) == 1:
         df_result = pd.read_csv(fileList[0]) #, assume_missing=True)#, keep_default_na=False)
