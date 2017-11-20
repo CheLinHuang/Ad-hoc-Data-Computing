@@ -350,6 +350,7 @@ while True:
                 conList.append(con)
         #end of command
         if len(conList) == 3: #TODO also check attr
+            print("conList", conList)
             if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
                 expr = conditionToPandas(conList)
                 print("<<filter>>", expr)
@@ -364,7 +365,6 @@ while True:
                 condRes.append(expr)
                 lastOper = ""
             conList.clear()
-
         cond_str = " ".join(condRes)
         print("[[Query]]: ", cond_str)
 
@@ -372,29 +372,84 @@ while True:
     #print(dataDict.values())
     if len(joinCon) != 0:
         print(joinCon)
-        [left, right] = joinCon[0].split('==')
-        for select in colList:
-            if select in right or right in select:
-                temp = right
-                right = left
-                left = temp
-        for key, value in attrDict.items():
-            if right in value:
-                coll = list(dataDict[key].columns)
-                for i in range(len(coll)):
-                    if coll[i] == right:
-                        coll[i] = left
-                        break
-                dataDict[key].columns = coll
-        for df in dataDict.values():
-            #df = (df).assign(key=0)
-            print(df.columns)
-            print("--- %s seconds ---" % (time.time() - start_time))
-            try:
-                df_result = df_result.merge(df, how='inner', on=left)
-                # df_result.drop('key', 1, inplace=True)
-            except:
-                df_result = df
+        selectAttr = ""
+        otherAttr = ''
+        for j in joinCon:
+            [left, right] = j.split('==')
+            if left in colList:
+                selectAttr = left
+                otherAttr = right
+                break
+            if right in colList:
+                selectAttr = right
+                otherAttr = left
+                break
+
+        if selectAttr == "":
+            for j in joinCon:
+                [left, right] = j.split('==')
+                if left.split('.')[1] in colList:
+                    selectAttr = left
+                    otherAttr = right
+                    break
+                if right.split('.')[1] in colList:
+                    selectAttr = right
+                    otherAttr = left
+                    break
+
+        if len(joinCon) == 2:
+            for j in joinCon:
+                [left, right] = j.split('==')
+                if selectAttr == left or selectAttr == right:
+                    continue
+                else:
+                    if otherAttr == left:
+                        rename = right
+                    else:
+                        rename = left
+                    for key, value in attrDict.items():
+                        if rename in value:
+                            coll = list(dataDict[key].columns)
+                            for i in range(len(coll)):
+                                if coll[i] == rename:
+                                    coll[i] = otherAttr
+                                    break
+                            dataDict[key].columns = coll
+                            df_result = dataDict[key]
+                        if otherAttr in value:
+                            joinKey = key
+                        if selectAttr in value:
+                            selectKey = key
+                    df_result = df_result.merge(dataDict[joinKey], how='inner', on=otherAttr)
+                    coll = list(df_result.columns)
+                    for i in range(len(coll)):
+                        if coll[i] == otherAttr:
+                            coll[i] = selectAttr
+                            break
+                    df_result.columns = coll
+                    df_result = df_result.merge(dataDict[selectKey], how='inner', on=selectAttr)
+                    break
+        else:
+
+            for key, value in attrDict.items():
+                if otherAttr in value:
+                    coll = list(dataDict[key].columns)
+                    for i in range(len(coll)):
+                        if coll[i] == otherAttr:
+                            coll[i] = selectAttr
+                            break
+                    dataDict[key].columns = coll
+                    break
+
+            for df in dataDict.values():
+                # df = (df).assign(key=0)
+                print(df.columns)
+                print("--- %s seconds ---" % (time.time() - start_time))
+                try:
+                    df_result = df_result.merge(df, how='inner', on=left)
+                    # df_result.drop('key', 1, inplace=True)
+                except:
+                    df_result = df
 
     else:
         for df in dataDict.values():
