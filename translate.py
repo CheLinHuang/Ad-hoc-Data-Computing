@@ -181,6 +181,7 @@ while True:
                 t = tableList1[idx : idx + 3]
                 handleCondition(t)
                 joinCon.append("".join(t))
+                attributeList.extend(t)
             else:
                 sys.exit("illegal command")
     else:
