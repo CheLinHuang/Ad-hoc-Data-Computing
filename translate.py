@@ -53,7 +53,14 @@ def conditionToPandas(condition, Final = False):
 
     expression += condition[1]
 
-    if is_number(condition[2]) or condition[1] == '.str.match(' or condition[2][0] == '(':
+    #if "Year" in condition[0]:
+        #expression += '\'' + condition[2] + '\''
+        #expression += ')'
+        #return expression
+
+    if condition[1] == '.str.match(' or condition[2][0] == '(':
+        expression += condition[2]
+    elif condition[2] == "''" or condition[2] == "' '":
         expression += condition[2]
     elif condition[2] in isAttribute:
         expression += 'df_result[\'' + condition[2] + '\']'
@@ -109,7 +116,7 @@ def  handleCondition(condition):
 
 while True:
     df_result = pd.DataFrame({'A' : []})
-    command = input("Type the your SQL and press Enter: \n>")
+    command = input("Type your SQL and press Enter: \n>")
     start_time = time.time()
     #command = 'SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7'
     if len(command) < 1:  # check prevents a crash when indexing to 1st character
@@ -230,7 +237,7 @@ while True:
                     if '.' in attr and attr.split('.')[1] in cols:
                         required_columns.add(attr.split('.')[1])
                         isAttribute.append(attr)
-                    elif '+' in attr and attr.split('+')[0] in cols:
+                    if '+' in attr and attr.split('+')[0] in cols:
                         required_columns.add(attr.split('+')[0])
                         isAttribute.append(attr)
                     elif '+' in attr and attr.split('+')[1] in cols:
@@ -350,7 +357,6 @@ while True:
                 conList.append(con)
         #end of command
         if len(conList) == 3: #TODO also check attr
-            print("conList", conList)
             if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
                 expr = conditionToPandas(conList)
                 print("<<filter>>", expr)
@@ -400,35 +406,66 @@ while True:
         if len(joinCon) == 2:
             for j in joinCon:
                 [left, right] = j.split('==')
-                if selectAttr == left or selectAttr == right:
+                #print("left",left)
+                #print("right", right)
+                if (selectAttr == left and otherAttr == right) or (selectAttr == right and otherAttr == left):
                     continue
                 else:
+
+                    rename = ""
+                    renameONOther = True
                     if otherAttr == left:
                         rename = right
-                    else:
+                    if otherAttr == right:
                         rename = left
+                    if rename == "":
+                        renameONOther = False
+                        if selectAttr == left:
+                            rename = right
+                        else:
+                            rename = leff
+                    #print(renameONOther)
+                    #print("selectAttr",selectAttr)
+                    #print("otherAttr", otherAttr)
+                    #print("rename", rename)
                     for key, value in attrDict.items():
                         if rename in value:
                             coll = list(dataDict[key].columns)
                             for i in range(len(coll)):
                                 if coll[i] == rename:
-                                    coll[i] = otherAttr
+                                    if renameONOther:
+                                        coll[i] = otherAttr
+                                    else:
+                                        coll[i] = selectAttr
                                     break
                             dataDict[key].columns = coll
                             df_result = dataDict[key]
                         if otherAttr in value:
-                            joinKey = key
+                            otherKey = key
                         if selectAttr in value:
                             selectKey = key
-                    df_result = df_result.merge(dataDict[joinKey], how='inner', on=otherAttr)
-                    coll = list(df_result.columns)
-                    for i in range(len(coll)):
-                        if coll[i] == otherAttr:
-                            coll[i] = selectAttr
-                            break
-                    df_result.columns = coll
-                    df_result = df_result.merge(dataDict[selectKey], how='inner', on=selectAttr)
+                    if renameONOther:
+                        df_result = df_result.merge(dataDict[otherKey], how='outer', on=otherAttr)
+                        print(df_result.columns)
+                        coll = list(df_result.columns)
+                        for i in range(len(coll)):
+                            if coll[i] == otherAttr:
+                                coll[i] = selectAttr
+                                break
+                        df_result.columns = coll
+                        print(df_result.columns)
+                        df_result = df_result.merge(dataDict[selectKey], how='outer', on=selectAttr)
+                    else:
+                        df_result = df_result.merge(dataDict[selectKey], how='outer', on=selectAttr)
+                        coll = list(dataDict[otherKey])
+                        for i in range(len(coll)):
+                            if coll[i] == otherAttr:
+                                coll[i] = selectAttr
+                                break
+                        dataDict[otherKey].columns = coll
+                        df_result = df_result.merge(dataDict[otherKey], how='outer', on=selectAttr)
                     break
+                    print(df_result.columns)
         else:
 
             for key, value in attrDict.items():
@@ -446,7 +483,7 @@ while True:
                 print(df.columns)
                 print("--- %s seconds ---" % (time.time() - start_time))
                 try:
-                    df_result = df_result.merge(df, how='inner', on=left)
+                    df_result = df_result.merge(df, how='outer', on=left)
                     # df_result.drop('key', 1, inplace=True)
                 except:
                     df_result = df
@@ -479,6 +516,7 @@ while True:
                         result_attr.append(prev + col)
                         break
         print(df_result[result_attr].dropna())
+        print("number of lines:", len(df_result))
         print("--- %s seconds ---" % (time.time() - start_time))
     #break
 
