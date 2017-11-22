@@ -53,12 +53,12 @@ def conditionToPandas(condition, Final = False):
 
     expression += condition[1]
 
-    #if "Year" in condition[0]:
-        #expression += '\'' + condition[2] + '\''
-        #expression += ')'
-        #return expression
+    if "Year" in condition[0]: #handle weird data
+        expression += '\'' + condition[2] + '\''
+        expression += ')'
+        return expression
 
-    if condition[1] == '.str.match(' or condition[2][0] == '(':
+    if is_number(condition[2]) or condition[1] == '.str.match(' or condition[2][0] == '(':
         expression += condition[2]
     elif condition[2] == "''" or condition[2] == "' '":
         expression += condition[2]
@@ -89,6 +89,29 @@ def checkNotCondition(condition):
             del condition[index] #delete not
 
         index += 1
+
+def handleAttr(condition, sub):
+    for i in range(len(condition)):
+        if "+" in condition[i]:
+            attr = condition[i].split("+")
+            attr.insert(1, "+")
+            condition[i] = conditionToPandas(attr, True)
+            sub.add(condition[i])
+        elif "-" in condition[i]:
+            attr = condition[i].split("-")
+            attr.insert(1, "-")
+            condition[i] = conditionToPandas(attr, True)
+            sub.add(condition[i])
+        elif "*" in condition[i]:
+            attr = condition[i].split("*")
+            attr.insert(1, "*")
+            condition[i] = conditionToPandas(attr, True)
+            sub.add(condition[i])
+        elif "/" in condition[i]:
+            attr = condition[i].split("/")
+            attr.insert(1, "/")
+            condition[i] = conditionToPandas(attr, True)
+            sub.add(condition[i])
 
 
 def  handleCondition(condition):
@@ -280,12 +303,15 @@ while True:
     condRes = []
     IsOr = False
     conList = []
+    attrSub = set()
     lastOper = ""
     if conPos != -1:
         condition = sqlList[conPos:]
+        handleAttr(condition, attrSub)
         handleCondition(condition)
         checkNotCondition(condition)
-        #print(condition)
+        print("attrSub: ", attrSub)
+        print(condition)
         if "|" in condition:
             IsOr = True
         for i in range(len(condition)):
@@ -304,7 +330,7 @@ while True:
                         sys.exit("illegal command")
             elif con == '&':
                 if len(conList) == 3: #TODO also check attr
-                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute and conList[2] not in attrSub):
                         expr = conditionToPandas(conList)
                         print("<<filter>>", expr)
                         for t in tableprefixList:
@@ -330,7 +356,7 @@ while True:
                 lastOper = ""
             elif con == ')':
                 if len(conList) == 3:
-                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+                    if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute and conList[2] not in attrSub):
                         expr = conditionToPandas(conList)
                         print("<<filter>>", expr)
                         for t in tableprefixList:
@@ -357,7 +383,7 @@ while True:
                 conList.append(con)
         #end of command
         if len(conList) == 3: #TODO also check attr
-            if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute):
+            if not IsOr and (conList[0] in isAttribute and conList[2] not in isAttribute and conList[2] not in attrSub):
                 expr = conditionToPandas(conList)
                 print("<<filter>>", expr)
                 for t in tableprefixList:
@@ -504,6 +530,7 @@ while True:
     #SELECT: Get the column(attributes) from file
     if colList == ['*']:
         print(df_result)
+        print("number of lines:", len(df_result))
     else:
         result_attr = []
         columns = df_result.columns
@@ -515,7 +542,7 @@ while True:
                     if prev + col in columns:
                         result_attr.append(prev + col)
                         break
-        print(df_result[result_attr].dropna())
+        print(df_result[result_attr])
         print("number of lines:", len(df_result))
         print("--- %s seconds ---" % (time.time() - start_time))
     #break
