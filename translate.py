@@ -429,6 +429,15 @@ while True:
                     otherAttr = left
                     break
 
+        if selectAttr == "":
+            temp = set()
+            for jj in joinCon:
+                for jjj in j.split('=='):
+                    if jjj in temp:
+                        selectAttr = jjj
+                    else:
+                        temp.add(jjj)
+
         if len(joinCon) == 2:
             for j in joinCon:
                 [left, right] = j.split('==')
@@ -449,7 +458,7 @@ while True:
                         if selectAttr == left:
                             rename = right
                         else:
-                            rename = leff
+                            rename = left
                     #print(renameONOther)
                     #print("selectAttr",selectAttr)
                     #print("otherAttr", otherAttr)
@@ -562,3 +571,8 @@ while True:
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  ( M.movie_title = A.Film ) AND NOT ( M.imdb_score < 7 AND  M.title_year > 2000 )
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  ( M.movie_title = A.Film ) AND NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
 # SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1, movies.csv M2, movies.csv M3 WHERE M1.director_name = M2.director_name AND M1.director_name = M3.director_name AND M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10
+
+
+# SELECT review_id,stars,useful FROM review-1m.csv WHERE stars >= 4 AND useful > 20
+# SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
+# SELECT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
