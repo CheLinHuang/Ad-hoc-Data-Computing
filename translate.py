@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
+import string
 import time
 import sys
 import re
+import gc
 
 notMap = {
     '==' : '!=',
@@ -140,6 +142,7 @@ def  handleCondition(condition):
 while True:
     df_result = pd.DataFrame({'A' : []})
     command = input("Type your SQL and press Enter: \n>")
+    gc.disable()
     start_time = time.time()
     #command = 'SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7'
     if len(command) < 1:  # check prevents a crash when indexing to 1st character
@@ -154,10 +157,11 @@ while True:
 
     conPos = -1
     if 'WHERE' in sqlList:
-        conPos = sqlList.index('WHERE') + 1  # conPos = the position conditional command starts
+        conPos = sqlList.index('WHERE')  # conPos = the position conditional command starts
     if 'where' in sqlList:
-        conPos = sqlList.index('where') + 1
+        conPos = sqlList.index('where')
     if conPos != -1:
+        conPos += 1
         for c in sqlList[conPos:]:
             attributeList.append(c)
     # print(attributeList)
@@ -403,125 +407,71 @@ while True:
     ## JOIN
     #print(dataDict.values())
     if len(joinCon) != 0:
-        print(joinCon)
-        selectAttr = ""
-        otherAttr = ''
-        for j in joinCon:
-            [left, right] = j.split('==')
-            if left in colList:
-                selectAttr = left
-                otherAttr = right
-                break
-            if right in colList:
-                selectAttr = right
-                otherAttr = left
-                break
+        print("joinCon", joinCon)
 
-        if selectAttr == "":
-            for j in joinCon:
-                [left, right] = j.split('==')
-                if left.split('.')[1] in colList:
-                    selectAttr = left
-                    otherAttr = right
-                    break
-                if right.split('.')[1] in colList:
-                    selectAttr = right
-                    otherAttr = left
-                    break
+        if len(joinCon) == 1:
+            [left, right] = joinCon[0].split('==')
+            for pre in tableprefixList:
+                if left.startswith(pre):
+                    dataDict[pre] = dataDict[pre].set_index(left)
+                    df1 = dataDict[pre]
+                if right.startswith(pre):
+                    dataDict[pre] = dataDict[pre].set_index(right)
+                    df2 = dataDict[pre]
 
-        if selectAttr == "":
-            temp = set()
-            for jj in joinCon:
-                for jjj in j.split('=='):
-                    if jjj in temp:
-                        selectAttr = jjj
-                    else:
-                        temp.add(jjj)
+            df_result = df1.join(df2, lsuffix='_l', rsuffix='_r')
 
-        if len(joinCon) == 2:
-            for j in joinCon:
-                [left, right] = j.split('==')
-                #print("left",left)
-                #print("right", right)
-                if (selectAttr == left and otherAttr == right) or (selectAttr == right and otherAttr == left):
-                    continue
-                else:
+            for a in attributeList:
+                if left == a:
+                    df_result[left] = df_result.index
+                if right == a:
+                    df_result[right] = df_result.index
 
-                    rename = ""
-                    renameONOther = True
-                    if otherAttr == left:
-                        rename = right
-                    if otherAttr == right:
-                        rename = left
-                    if rename == "":
-                        renameONOther = False
-                        if selectAttr == left:
-                            rename = right
-                        else:
-                            rename = left
-                    #print(renameONOther)
-                    #print("selectAttr",selectAttr)
-                    #print("otherAttr", otherAttr)
-                    #print("rename", rename)
-                    for key, value in attrDict.items():
-                        if rename in value:
-                            coll = list(dataDict[key].columns)
-                            for i in range(len(coll)):
-                                if coll[i] == rename:
-                                    if renameONOther:
-                                        coll[i] = otherAttr
-                                    else:
-                                        coll[i] = selectAttr
-                                    break
-                            dataDict[key].columns = coll
-                            df_result = dataDict[key]
-                        if otherAttr in value:
-                            otherKey = key
-                        if selectAttr in value:
-                            selectKey = key
-                    if renameONOther:
-                        df_result = df_result.merge(dataDict[otherKey], how='outer', on=otherAttr)
-                        print(df_result.columns)
-                        coll = list(df_result.columns)
-                        for i in range(len(coll)):
-                            if coll[i] == otherAttr:
-                                coll[i] = selectAttr
-                                break
-                        df_result.columns = coll
-                        print(df_result.columns)
-                        df_result = df_result.merge(dataDict[selectKey], how='outer', on=selectAttr)
-                    else:
-                        df_result = df_result.merge(dataDict[selectKey], how='outer', on=selectAttr)
-                        coll = list(dataDict[otherKey])
-                        for i in range(len(coll)):
-                            if coll[i] == otherAttr:
-                                coll[i] = selectAttr
-                                break
-                        dataDict[otherKey].columns = coll
-                        df_result = df_result.merge(dataDict[otherKey], how='outer', on=selectAttr)
-                    break
-                    print(df_result.columns)
+            print(df_result.columns)
+
         else:
+            joinAttr = set()
+            commonAttr = ""
 
-            for key, value in attrDict.items():
-                if otherAttr in value:
-                    coll = list(dataDict[key].columns)
-                    for i in range(len(coll)):
-                        if coll[i] == otherAttr:
-                            coll[i] = selectAttr
-                            break
-                    dataDict[key].columns = coll
-                    break
+            for joinLine in joinCon:
+                [left, right] = joinLine.split('==')
+                if left in joinAttr:
+                    commonAttr = left
+                else:
+                    joinAttr.add(left)
+                if right in joinAttr:
+                    commonAttr = right
+                else:
+                    joinAttr.add(right)
 
-            for df in dataDict.values():
-                # df = (df).assign(key=0)
-                print(df.columns)
-                print("--- %s seconds ---" % (time.time() - start_time))
-                try:
-                    df_result = df_result.merge(df, how='outer', on=left)
-                    # df_result.drop('key', 1, inplace=True)
-                except:
-                    df_result = df
+            # TODO: require attr on both side
+            # TODO: require attr on one side
+
+
+            [left, right] = joinCon[0].split('==')
+            for pre in tableprefixList:
+                if left.startswith(pre):
+                    dataDict[pre] = dataDict[pre].set_index(left)
+                    df1 = dataDict[pre]
+                if right.startswith(pre):
+                    dataDict[pre] = dataDict[pre].set_index(right)
+                    df2 = dataDict[pre]
+
+            df_result = df1.join(df2, lsuffix='_l', rsuffix='_r')
+
+
+            for i in range(1, len(joinCon)):
+                [left, right] = joinCon[i].split('==')
+                for pre in tableprefixList:
+                    if left != commonAttr and left.startswith(pre):
+                        print(left)
+                        dataDict[pre] = dataDict[pre].set_index(left)
+                        df1 = dataDict[pre]
+                    if right != commonAttr and right.startswith(pre):
+                        print(right)
+                        dataDict[pre] = dataDict[pre].set_index(right)
+                        df1 = dataDict[pre]
+                df_result = df_result.join(df1, lsuffix='_l', rsuffix='_r')
 
     else:
         for df in dataDict.values():
@@ -536,6 +486,8 @@ while True:
     if cond_str != "":
         df_result = df_result[eval(cond_str)]
 
+
+    print('select attributes', colList)
     #SELECT: Get the column(attributes) from file
     if colList == ['*']:
         print(df_result)
@@ -555,7 +507,7 @@ while True:
         print("number of lines:", len(df_result))
         print("--- %s seconds ---" % (time.time() - start_time))
     #break
-
+    gc.enable()
 # select Date from nasdaq.csv where Open <= 5000 or High < 5200
 # select Date from nasdaq.csv, euro50.csv
 # select * from nasdaq.csv, euro50.csv
