@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import string
 import time
+import shlex
 import sys
 import re
-import gc
 
 notMap = {
     '==' : '!=',
@@ -43,6 +43,7 @@ def checkStackEnd(stk):
 
 def conditionToPandas(condition, Final = False):
     assert len(condition) == 3
+    print('conditionToPandas',condition)
     expression = '('
     if condition[0][0] == '(':
         expression += condition[0]
@@ -53,6 +54,8 @@ def conditionToPandas(condition, Final = False):
             if condition[0] in attrDict[tableprefixList[i]]:
                 expression += 'dataDict[\'' + tableprefixList[i] + '\'][\'' + condition[0] + '\']'
 
+    condition0 = expression[1:]
+    print('condition0', condition0)
     expression += condition[1]
 
     if "Year" in condition[0]: #handle weird data
@@ -60,7 +63,9 @@ def conditionToPandas(condition, Final = False):
         expression += ')'
         return expression
 
-    if is_number(condition[2]) or condition[1] == '.str.match(' or condition[2][0] == '(':
+    if condition[1] == '.str.match(' or condition[2][0] == '(':
+        expression += condition[2]
+    elif is_number(condition[2]) and type(eval(condition0).iloc[0]) != str:
         expression += condition[2]
     elif condition[2] == "''" or condition[2] == "' '":
         expression += condition[2]
@@ -142,13 +147,17 @@ def  handleCondition(condition):
 while True:
     df_result = pd.DataFrame({'A' : []})
     command = input("Type your SQL and press Enter: \n>")
-    gc.disable()
     start_time = time.time()
     #command = 'SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7'
     if len(command) < 1:  # check prevents a crash when indexing to 1st character
        continue
-    sqlList = command.split() #Create the list to store the SQL
-    colList = sqlList[1].split(',')
+    #sqlList = command.split() #Create the list to store the SQL
+    sqlList = shlex.split(command)
+    getDistinct = (sqlList[1] == 'DISTINCT' or sqlList[1] == 'distinct')
+    if getDistinct:
+        colList = sqlList[2].split(',')
+    else:
+        colList = sqlList[1].split(',')
     attributeList = list(colList)
     # print(colList)
     dataDict = dict()
@@ -168,9 +177,9 @@ while True:
     #FROM: Get the outer join of several tables or the content of one single file
     fileList = [] #Retrieve one or more filename
     if conPos == -1:
-        tableList = sqlList[3:]
+        tableList = sqlList[3 + 1 if getDistinct else 0:]
     else:
-        tableList = sqlList[3:conPos - 1]
+        tableList = sqlList[3 + 1 if getDistinct else 0:conPos - 1]
     tableList1 = list(tableList)
     tableposList = []
     for i in range(len(tableList)):
@@ -245,7 +254,7 @@ while True:
     print('joinCon: ', joinCon)
     isAttribute = []
 
-    if len(fileList) == 1:
+    if len(fileList) >= 5:
         df_result = pd.read_csv(fileList[0]) #, assume_missing=True)#, keep_default_na=False)
         isAttribute = set(df_result.columns)
         attrDict[tableprefixList[0]] = set(list(df_result.columns))
@@ -339,7 +348,10 @@ while True:
                         print("<<filter>>", expr)
                         for t in tableprefixList:
                             if conList[0] in attrDict[t]:
+                                print(dataDict[t])
                                 dataDict[t] = dataDict[t][eval(expr)]
+                                print("<<filter>>", len(dataDict[t]))
+                                print(dataDict[t])
                                 break
                     else:
                         expr = conditionToPandas(conList, True)
@@ -365,7 +377,10 @@ while True:
                         print("<<filter>>", expr)
                         for t in tableprefixList:
                             if conList[0] in attrDict[t]:
+                                print(dataDict[t])
                                 dataDict[t] = dataDict[t][eval(expr)]
+                                print("<<filter>>", len(dataDict[t]))
+                                print(dataDict[t])
                                 break
                     else:
                         expr = conditionToPandas(conList, True)
@@ -392,7 +407,10 @@ while True:
                 print("<<filter>>", expr)
                 for t in tableprefixList:
                     if conList[0] in attrDict[t]:
+                        print(dataDict[t])
                         dataDict[t] = dataDict[t][eval(expr)]
+                        print("<<filter>>", len(dataDict[t]))
+                        print(dataDict[t])
                         break
             else:
                 expr = conditionToPandas(conList, True)
@@ -474,7 +492,9 @@ while True:
                 df_result = df_result.join(df1, lsuffix='_l', rsuffix='_r')
 
     else:
+        print("one table")
         for df in dataDict.values():
+            print('df', len(df))
             df = (df).assign(key=0)
             print("--- %s seconds ---" % (time.time() - start_time))
             try:
@@ -483,6 +503,9 @@ while True:
             except:
                 df_result = df
 
+    print('df_result', df_result.columns)
+    print('df_result len', len(df_result))
+
     if cond_str != "":
         df_result = df_result[eval(cond_str)]
 
@@ -490,8 +513,12 @@ while True:
     print('select attributes', colList)
     #SELECT: Get the column(attributes) from file
     if colList == ['*']:
-        print(df_result)
-        print("number of lines:", len(df_result))
+        if getDistinct:
+            print(df_result.drop_duplicates())
+            print("number of lines:", len(df_result.drop_duplicates()))
+        else:
+            print(df_result)
+            print("number of lines:", len(df_result))
     else:
         result_attr = []
         columns = df_result.columns
@@ -503,16 +530,19 @@ while True:
                     if prev + col in columns:
                         result_attr.append(prev + col)
                         break
-        print(df_result[result_attr])
-        print("number of lines:", len(df_result))
+        if getDistinct:
+            print(df_result[result_attr].drop_duplicates())
+            print("number of lines:", len(df_result.drop_duplicates()))
+        else:
+            print(df_result[result_attr])
+            print("number of lines:", len(df_result))           
         print("--- %s seconds ---" % (time.time() - start_time))
-    #break
-    gc.enable()
+
 # select Date from nasdaq.csv where Open <= 5000 or High < 5200
 # select Date from nasdaq.csv, euro50.csv
 # select * from nasdaq.csv, euro50.csv
 # select Date from nasdaq.csv where Open = 4000
-# TODO select * from test1.csv where NOT String = 'hui'
+# select * from test1.csv where NOT String = 'hui'
 # select * from test1.csv where String like '_hui%'
 # SELECT * FROM movies.csv WHERE title_year = 1999
 # SELECT title_year FROM movies.csv WHERE NOT title_year = 1999
