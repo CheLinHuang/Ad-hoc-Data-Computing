@@ -136,12 +136,17 @@ def  handleCondition(condition):
             condition[i] = '~'
         elif con == 'like' or con == 'LIKE':
             condition[i] = '.str.match('
-            #if condition[i+1][1] != '%':
-            condition[i + 1] = '\'^' + condition[i + 1][1:]
-            #if condition[i + 1][len(condition[i + 1])-2] != '%':
-            condition[i + 1] = condition[i + 1][:len(condition[i + 1])-1] + '$\', na=False)'
+            if condition[i+1][0] != '%':
+                condition[i + 1] = '\'^' + condition[i + 1]
+            else:
+                condition[i + 1] = '\'' + condition[i + 1]
+
+            if condition[i + 1][-1] != '%':
+                condition[i + 1] += '$'
+
             condition[i + 1] = condition[i + 1].replace('%', '.*')
             condition[i + 1] = condition[i + 1].replace('_', '.')
+            condition[i + 1] += '\', na=False)'
 
 
 while True:
@@ -153,6 +158,7 @@ while True:
        continue
     #sqlList = command.split() #Create the list to store the SQL
     sqlList = shlex.split(command)
+    print('sqlList',sqlList)
     getDistinct = (sqlList[1] == 'DISTINCT' or sqlList[1] == 'distinct')
     if getDistinct:
         colList = sqlList[2].split(',')
@@ -254,7 +260,7 @@ while True:
     print('joinCon: ', joinCon)
     isAttribute = []
 
-    if len(fileList) >= 5:
+    if len(fileList) == 1:
         df_result = pd.read_csv(fileList[0]) #, assume_missing=True)#, keep_default_na=False)
         isAttribute = set(df_result.columns)
         attrDict[tableprefixList[0]] = set(list(df_result.columns))
@@ -546,7 +552,7 @@ while True:
 # select * from test1.csv where String like '_hui%'
 # SELECT * FROM movies.csv WHERE title_year = 1999
 # SELECT title_year FROM movies.csv WHERE NOT title_year = 1999
-# SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+# SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry Potter%'
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE ( M.movie_title = A.Film AND M.imdb_score < 7 )
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  M.movie_title = A.Film AND NOT M.imdb_score < 7
@@ -558,3 +564,4 @@ while True:
 # SELECT review_id,stars,useful FROM review-1m.csv WHERE stars >= 4 AND useful > 20
 # SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
 # SELECT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
+# SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry Potter%'
