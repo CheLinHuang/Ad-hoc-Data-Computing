@@ -243,13 +243,15 @@ while True:
     """
     #Save the prefix of each table(renamed or not)
     j = 0
-    for i in range(len(tableposList)):
+    for tableindex in tableposList:
+        tableprefixList.append(tableList[int(tableindex + 1)])
+    # for i in range(len(tableposList)):
 
-        if j<len(renametableList) and tableList[tableposList[i]] == renametableList[j]:
-            tableprefixList.append(tableList[tableposList[i]+1])
-            j = j + 1
-        else:
-            tableprefixList.append(tableList[tableposList[i]])
+    #     if j<len(renametableList) and tableList[tableposList[i]] == renametableList[j]:
+    #         tableprefixList.append(tableList[tableposList[i]+1])
+    #         j = j + 1
+    #     else:
+    #         tableprefixList.append(tableList[tableposList[i]])
 
     print(df_result.columns)
     print('tableList',tableList)
