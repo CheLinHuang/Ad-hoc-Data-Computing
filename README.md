@@ -1,20 +1,32 @@
 Ad-hoc-Data-Computing
 =================================
+The project is designed for UIUC Fall 2017 Course CS411 Database Systems 
+Perform SQL queries on CSVs data.
+
+Prerequisite
+-----------
+Python 3 or above version should be installed
+pip or other kinds of installation tools should be installed 
+
+Installation
+-----------
+sudo pip install pandas
+sudo pip install feather
+
+Run
+-----------
+Python3 translate.py
+
 Syntax
 -----------
-1. SELECT attribute name should be separated by comma without space.
-2. All the other terms should be seperated by space.
+a) SELECT attribute name should be separated by comma without space.
 
+b) All the strings do not need quotation marks.
 
-Execution
------------
-python3 translate.py
+After running translate.py, when you see "Type your SQL and press Enter: \n> ",input your query
+Here are some test queries to try:
 
-
-Some exmaples
------------
-* SELECT * FROM movies.csv WHERE title_year = 1999
-* SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
-* SELECT title_year,movie_title FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE NOT ( M.imdb_score < 7 )
-* SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title
-
+* SELECT R.review_id,R.stars,R.useful FROM review-1m.csv R WHERE R.stars >= 4 AND R.useful > 20
+* SELECT review_id,stars,useful FROM review-1m.csv WHERE stars >= 4 AND useful > 20
+* SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
+* SELECT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
