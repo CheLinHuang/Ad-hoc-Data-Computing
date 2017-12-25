@@ -256,7 +256,7 @@ while True:
     #Save the prefix of each table(renamed or not)
     j = 0
     for tableindex in tableposList:
-        tableprefixList.append(tableList[int(tableindex + 1)])
+        tableprefixList.append(tableList[(tableindex + 1) if (tableindex + 1) < len(tableList) else tableindex])
     # for i in range(len(tableposList)):
 
     #     if j<len(renametableList) and tableList[tableposList[i]] == renametableList[j]:
@@ -280,7 +280,11 @@ while True:
         isAttribute = set(df_result.columns)
         attrDict[tableprefixList[0]] = set(list(df_result.columns))
         dataDict[tableprefixList[0]] = df_result
-
+        if not fileList[0].startswith(tableprefixList[0]):
+            cols = list(df_result.columns)
+            for j in range(len(cols)):
+                cols[j] = tableprefixList[0] + cols[j]
+            df_result.columns = cols
     else:
         for i in range(len(fileList)):
             path = (fileList[i].split('.'))[0] + '.feather'
@@ -576,7 +580,7 @@ while True:
 # SELECT title_year,movie_title,award,imdb_score FROM movies.csv M, oscars.csv A WHERE  ( M.movie_title = A.Film ) AND NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
 # SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1, movies.csv M2, movies.csv M3 WHERE M1.director_name = M2.director_name AND M1.director_name = M3.director_name AND M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10
 
-
+# SELECT R.review_id,R.stars,R.useful FROM review-1m.csv R WHERE R.stars >= 4 AND R.useful > 20
 # SELECT review_id,stars,useful FROM review-1m.csv WHERE stars >= 4 AND useful > 20
 # SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
 # SELECT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
