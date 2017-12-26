@@ -508,16 +508,21 @@ while True:
             for i in range(1, len(joinCon)):
                 [left, right] = joinCon[i].split('==')
                 for pre in tableprefixList:
-                    if left != commonAttr and left.startswith(pre):
-                        print(left)
-                        # dataDict[pre] = dataDict[pre].set_index(left)
+                    if left not in set(df_result.columns) and left.startswith(pre):
                         df1 = dataDict[pre]
-                    if right != commonAttr and right.startswith(pre):
-                        print(right)
-                        # dataDict[pre] = dataDict[pre].set_index(right)
+                        print('left',pre)
+                        break
+                    if right not in set(df_result.columns) and right.startswith(pre):
                         df1 = dataDict[pre]
+                        print('right',pre)
+                        temp = left
+                        left = right
+                        right = temp
+                        break
                 # df_result = df_result.join(df1, lsuffix='_l', rsuffix='_r')
-                df_result = pd.merge(df1, df2, left_on=left, right_on=right, how="inner")
+                print('left', left)
+                print('right', right)
+                df_result = pd.merge(df1, df_result, left_on=left, right_on=right, how="inner")
     else:
         print("one table")
         for df in dataDict.values():
