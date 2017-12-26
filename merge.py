@@ -48,7 +48,7 @@ def conditionToPandas(condition, Final = False):
     expression = '('
     if condition[0][0] == '(':
         expression += condition[0]
-    elif condition[2] in isAttribute or condition[2][0] == '(' or Final:
+    elif condition[2] in isAttribute or (len(condition[2]) > 0 and condition[2][0] == '(') or Final:
         expression += 'df_result[\'' + condition[0] + '\']'
     else:
         for i in range(len(tableprefixList)):
@@ -57,18 +57,24 @@ def conditionToPandas(condition, Final = False):
 
     condition0 = expression[1:]
     print('condition0', condition0)
-    expression += condition[1]
 
     if "Year" in condition[0]: #handle weird data
         expression += '\'' + condition[2] + '\''
         expression += ')'
         return expression
 
+    if len(condition[2]) == 0:
+        if condition[1] == "==":
+            expression += ".isna())"
+        else:
+            expression += ".notnull())"
+        return expression
+
+    expression += condition[1]
+
     if condition[1] == '.str.match(' or condition[2][0] == '(':
         expression += condition[2]
     elif is_number(condition[2]) and type(eval(condition0).iloc[0]) != str:
-        expression += condition[2]
-    elif condition[2] == "''" or condition[2] == "' '":
         expression += condition[2]
     elif condition[2] in isAttribute:
         expression += 'df_result[\'' + condition[2] + '\']'
@@ -149,17 +155,20 @@ def  handleCondition(condition):
             condition[i + 1] = condition[i + 1].replace('_', '.')
             condition[i + 1] += '\', na=False)'
 
-df = pd.read_csv('review-1m.csv')
-feather.write_dataframe(df, 'review-1m.feather')
+# df = pd.read_csv('review-1m.csv')
+# feather.write_dataframe(df, 'review-1m.feather')
 
-df = pd.read_csv('photos.csv')
-feather.write_dataframe(df, 'photos.feather')
+# df = pd.read_csv('photos.csv')
+# feather.write_dataframe(df, 'photos.feather')
 
-df = pd.read_csv('checkin.csv')
-feather.write_dataframe(df, 'checkin.feather')
+# df = pd.read_csv('checkin.csv')
+# feather.write_dataframe(df, 'checkin.feather')
 
-df = pd.read_csv('business.csv')
-feather.write_dataframe(df, 'business.feather')
+# df = pd.read_csv('business.csv')
+# feather.write_dataframe(df, 'business.feather')
+
+df = pd.read_csv('test.csv')
+feather.write_dataframe(df, 'test.feather')
 
 while True:
     df_result = pd.DataFrame({'A' : []})
@@ -589,5 +598,5 @@ while True:
 # SELECT R.review_id,R.stars,R.useful FROM review-1m.csv R WHERE R.stars >= 4 AND R.useful > 20
 # SELECT review_id,stars,useful FROM review-1m.csv WHERE stars >= 4 AND useful > 20
 # SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
-# SELECT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
+# SELECT DISTINCT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
 # SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry Potter%'
