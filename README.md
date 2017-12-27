@@ -15,7 +15,7 @@ sudo pip install feather
 
 Run
 -----------
-Python3 translate.py
+Python3 merge.py
 
 Syntax
 -----------
