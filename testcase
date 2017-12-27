@@ -22,25 +22,37 @@ SELECT DISTINCT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id
 Q7
 SELECT R.review_id,R.stars,R.useful FROM review-1m.csv R WHERE R.stars >= 4 AND R.useful > 20
 
-
-===== OTHER TEST =====
 Q8
-SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title
+SELECT B.name,B.city,B.state FROM business.csv B WHERE B.city = Champaign AND B.state = IL
 
 Q9
-SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year AND M2.title_year < M3.title_year
+SELECT B.name,B.postal_code,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.name = 'Sushi Ichiban' AND B.postal_code = 61820
 
 Q10
-SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7
+SELECT R1.user_id,R2.user_id,R1.stars,R2.stars FROM review-1m.csv R1 JOIN review-1m.csv R2 ON R1.business_id = R2.business_id WHERE R1.stars = 5 AND R2.stars = 1 AND R1.useful > 50 AND R2.useful > 50
 
 Q11
-SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+SELECT B.name,R1.user_id,R2.user_id FROM business.csv B JOIN review-1m.csv R1 ON B.business_id = R1.business_id JOIN review-1m.csv R2 ON R1.business_id = R2.business_id WHERE R1.stars = 5 AND R2.stars = 1 AND R1.useful > 50 AND R2.useful > 50
 
+
+===== OTHER TEST =====
 Q12
-SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
+SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title
 
-Q13 ...not work
-SELECT M.title_year,M.movie_title,A.Award,M.imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7 OR M.title_year > 2000
+Q13
+SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year AND M2.title_year < M3.title_year
 
 Q14
+SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7
+
+Q15
+SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+
+Q16
+SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
+
+Q17 ...not work
+SELECT M.title_year,M.movie_title,A.Award,M.imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7 OR M.title_year > 2000
+
+Q18
 SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10
