@@ -1,0 +1,46 @@
+===== INITAIL DEMO =====
+Q1
+SELECT movie_title,title_year,imdb_score FROM movies.csv WHERE movie_title LIKE '%Kevin%' AND imdb_score > 7
+
+Q2 ...not work
+SELECT M.title_year,M.movie_title,A.Award,M.imdb_score,M.movie_facebook_likes FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE A.Winner = 1 AND ( M.imdb_score < 6 OR M.movie_facebook_likes < 10000 )
+
+Q3
+SELECT A1.Year,A1.Film,A1.Award,A1.Name,A2.Award,A2.Name FROM oscars.csv A1 JOIN oscars.csv A2 ON A1.Film = A2.Film WHERE A1.Film <> '' AND A1.Winner = 1 AND A2.Winner = 1 AND A1.Award > A2.Award AND A1.Year > 2010
+
+Q4
+SELECT M.movie_title,M.title_year,M.imdb_score,A1.Name,A1.Award,A2.Name,A2.Award FROM movies.csv M JOIN oscars.csv A1 ON M.movie_title = A1.Film JOIN oscars.csv A2 ON M.movie_title = A2.Film WHERE A1.Award = Actor AND A2.Award = Actress
+
+
+===== FINAL DEMO =====
+Q5
+SELECT B.name,B.postal_code,R.review_id,R.stars,R.useful FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id WHERE B.city = Champaign AND B.state = IL
+
+Q6
+SELECT DISTINCT B.name FROM business.csv B JOIN review-1m.csv R ON B.business_id = R.business_id JOIN photos.csv P ON B.business_id = P.business_id WHERE B.city = Champaign AND B.state = IL AND R.stars = 5 AND P.label = inside
+
+Q7
+SELECT R.review_id,R.stars,R.useful FROM review-1m.csv R WHERE R.stars >= 4 AND R.useful > 20
+
+
+===== OTHER TEST =====
+Q8
+SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title
+
+Q9
+SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year AND M2.title_year < M3.title_year
+
+Q10
+SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7
+
+Q11
+SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+
+Q12
+SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
+
+Q13 ...not work
+SELECT M.title_year,M.movie_title,A.Award,M.imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7 OR M.title_year > 2000
+
+Q14
+SELECT M1.director_name,M1.title_year,M1.movie_title,M2.title_year,M2.movie_title,M3.title_year,M3.movie_title FROM movies.csv M1 JOIN movies.csv M2 ON M1.director_name = M2.director_name JOIN movies.csv M3 ON M1.director_name = M3.director_name WHERE M1.movie_title <> M2.movie_title AND M2.movie_title <> M3.movie_title AND M1.movie_title <> M3.movie_title AND M1.title_year < M2.title_year-10 AND M2.title_year < M3.title_year-10

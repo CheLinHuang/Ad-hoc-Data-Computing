@@ -58,11 +58,6 @@ def conditionToPandas(condition, Final = False):
     condition0 = expression[1:]
     print('condition0', condition0)
 
-    if "Year" in condition[0]: #handle weird data
-        expression += '\'' + condition[2] + '\''
-        expression += ')'
-        return expression
-
     if len(condition[2]) == 0:
         if condition[1] == "==":
             expression += ".isna())"
@@ -167,8 +162,8 @@ def  handleCondition(condition):
 # df = pd.read_csv('business.csv')
 # feather.write_dataframe(df, 'business.feather')
 
-df = pd.read_csv('test.csv')
-feather.write_dataframe(df, 'test.feather')
+#df = pd.read_csv('test.csv')
+#feather.write_dataframe(df, 'test.feather')
 
 while True:
     df_result = pd.DataFrame({'A' : []})
