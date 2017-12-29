@@ -44,7 +44,6 @@ def checkStackEnd(stk):
 
 def conditionToPandas(condition, Final = False):
     assert len(condition) == 3
-    print('conditionToPandas',condition)
     expression = '('
     if condition[0][0] == '(':
         expression += condition[0]
@@ -56,8 +55,6 @@ def conditionToPandas(condition, Final = False):
                 expression += 'dataDict[\'' + tableprefixList[i] + '\'][\'' + condition[0] + '\']'
 
     condition0 = expression[1:]
-    print('condition0', condition0)
-
     if len(condition[2]) == 0:
         if condition[1] == "==":
             expression += ".isna())"
@@ -99,30 +96,6 @@ def checkNotCondition(condition):
 
         index += 1
 
-def handleAttr(condition, sub):
-    for i in range(len(condition)):
-        if "+" in condition[i]:
-            attr = condition[i].split("+")
-            attr.insert(1, "+")
-            condition[i] = conditionToPandas(attr, True)
-            sub.add(condition[i])
-        elif "-" in condition[i]:
-            attr = condition[i].split("-")
-            attr.insert(1, "-")
-            condition[i] = conditionToPandas(attr, True)
-            sub.add(condition[i])
-        elif "*" in condition[i]:
-            attr = condition[i].split("*")
-            attr.insert(1, "*")
-            condition[i] = conditionToPandas(attr, True)
-            sub.add(condition[i])
-        elif "/" in condition[i]:
-            attr = condition[i].split("/")
-            attr.insert(1, "/")
-            condition[i] = conditionToPandas(attr, True)
-            sub.add(condition[i])
-
-
 def  handleCondition(condition):
     for i in range(len(condition)):
         con = condition[i]
@@ -151,76 +124,34 @@ def  handleCondition(condition):
             condition[i + 1] += '\', na=False)'
 
 def doJoin(joinCon, dataDict, tableprefixList, attributeList):
-    print("joinCon", joinCon)
-    if len(joinCon) == 1:
-        [left, right] = joinCon[0].split('==')
-        for pre in tableprefixList:
-            if left.startswith(pre):
-                # dataDict[pre] = dataDict[pre].set_index(left)
-                df1 = dataDict[pre]
-            if right.startswith(pre):
-                # dataDict[pre] = dataDict[pre].set_index(right)
-                df2 = dataDict[pre]
+    assert len(joinCon) > 0
+    # print("joinCon", joinCon)
 
-        # df_result = df1.join(df2, lsuffix='_l', rsuffix='_r')
-        df_result = pd.merge(df1, df2, left_on=left, right_on=right, how="inner")
+    [left, right] = joinCon[0].split('==')
+    for pre in tableprefixList:
+        if left.startswith(pre):
+            df1 = dataDict[pre]
+        if right.startswith(pre):
+            df2 = dataDict[pre]
 
-        for a in attributeList:
-            if left == a:
-                df_result[left] = df_result.index
-            if right == a:
-                df_result[right] = df_result.index
+    df_result = pd.merge(df1, df2, left_on=left, right_on=right, how="inner")
 
-        print(df_result.columns)
-
-    else:
-        joinAttr = set()
-        commonAttr = ""
-
-        for joinLine in joinCon:
-            [left, right] = joinLine.split('==')
-            if left in joinAttr:
-                commonAttr = left
-            else:
-                joinAttr.add(left)
-            if right in joinAttr:
-                commonAttr = right
-            else:
-                joinAttr.add(right)
-
-        # TODO: require attr on both side
-        # TODO: require attr on one side
-
-
-        [left, right] = joinCon[0].split('==')
-        for pre in tableprefixList:
-            if left.startswith(pre):
-                # dataDict[pre] = dataDict[pre].set_index(left)
-                df1 = dataDict[pre]
-            if right.startswith(pre):
-                # dataDict[pre] = dataDict[pre].set_index(right)
-                df2 = dataDict[pre]
-
-        # df_result = df1.join(df2, lsuffix='_l', rsuffix='_r')
-        df_result = pd.merge(df1, df2, left_on=left, right_on=right, how="inner")
+    if len(joinCon) == 2:
 
         for i in range(1, len(joinCon)):
             [left, right] = joinCon[i].split('==')
+            df_resultColumns = set(df_result.columns)
             for pre in tableprefixList:
-                if left not in set(df_result.columns) and left.startswith(pre):
+                if left not in df_resultColumns and left.startswith(pre):
                     df1 = dataDict[pre]
-                    print('left', pre)
                     break
-                if right not in set(df_result.columns) and right.startswith(pre):
+                if right not in df_resultColumns and right.startswith(pre):
                     df1 = dataDict[pre]
-                    print('right', pre)
                     temp = left
                     left = right
                     right = temp
                     break
-            # df_result = df_result.join(df1, lsuffix='_l', rsuffix='_r')
-            print('left', left)
-            print('right', right)
+
             df_result = pd.merge(df1, df_result, left_on=left, right_on=right, how="inner")
 
     return df_result
@@ -244,19 +175,16 @@ while True:
     df_result = pd.DataFrame({'A' : []})
     command = input("Type your SQL and press Enter: \n>")
     start_time = time.time()
-    #command = 'SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M, oscars.csv A WHERE M.movie_title = A.Film AND M.imdb_score < 7'
     if len(command) < 1:  # check prevents a crash when indexing to 1st character
-       continue
-    #sqlList = command.split() #Create the list to store the SQL
-    sqlList = shlex.split(command)
-    print('sqlList',sqlList)
+       continue 
+    sqlList = shlex.split(command) #Create the list to store the SQL
+    # print('sqlList',sqlList)
     getDistinct = (sqlList[1] == 'DISTINCT' or sqlList[1] == 'distinct')
     if getDistinct:
         colList = sqlList[2].split(',')
     else:
         colList = sqlList[1].split(',')
     attributeList = list(colList)
-    # print(colList)
     dataDict = dict()
     attrDict = dict()
     joinCon = []
@@ -337,21 +265,13 @@ while True:
     j = 0
     for tableindex in tableposList:
         tableprefixList.append(tableList[(tableindex + 1) if (tableindex + 1) < len(tableList) else tableindex])
-    # for i in range(len(tableposList)):
 
-    #     if j<len(renametableList) and tableList[tableposList[i]] == renametableList[j]:
-    #         tableprefixList.append(tableList[tableposList[i]+1])
-    #         j = j + 1
-    #     else:
-    #         tableprefixList.append(tableList[tableposList[i]])
-
-    print(df_result.columns)
-    print('tableList',tableList)
-    print('tableposList',tableposList)
-    print('renametableList',renametableList)
-    print('tableprefixList',tableprefixList)
-    print('fileList',fileList)
-    print('joinCon: ', joinCon)
+    # print('tableList',tableList)
+    # print('tableposList',tableposList)
+    # print('renametableList',renametableList)
+    # print('tableprefixList',tableprefixList)
+    # print('fileList',fileList)
+    # print('joinCon: ', joinCon)
     isAttribute = []
 
     if len(fileList) == 1:
@@ -414,8 +334,8 @@ while True:
             dataDict[tableprefixList[i]] = df
             isAttribute.extend(list(df.columns))
 
-    print('isAttribute', isAttribute)
-    print(list(df_result.columns))
+    # print('isAttribute', isAttribute)
+    # print(list(df_result.columns))
 
     #WHERE: Deal with the conditions
     stk = []
@@ -426,11 +346,46 @@ while True:
     lastOper = ""
     if conPos != -1:
         condition = sqlList[conPos:]
-        handleAttr(condition, attrSub)
+        
+        # handleAttr
+        for i in range(len(condition)):
+            if "+" in condition[i]:
+                attr = condition[i].split("+")
+                attr.insert(1, "+")
+                if not isJoin:
+                    df_result = doJoin(joinCon, dataDict, tableprefixList, attributeList)
+                    isJoin = True
+                condition[i] = conditionToPandas(attr, True)
+                attrSub.add(condition[i])
+            elif "-" in condition[i]:
+                attr = condition[i].split("-")
+                attr.insert(1, "-")
+                if not isJoin:
+                    df_result = doJoin(joinCon, dataDict, tableprefixList, attributeList)
+                    isJoin = True
+                condition[i] = conditionToPandas(attr, True)
+                attrSub.add(condition[i])
+            elif "*" in condition[i]:
+                attr = condition[i].split("*")
+                attr.insert(1, "*")
+                if not isJoin:
+                    df_result = doJoin(joinCon, dataDict, tableprefixList, attributeList)
+                    isJoin = True
+                condition[i] = conditionToPandas(attr, True)
+                attrSub.add(condition[i])
+            elif "/" in condition[i]:
+                attr = condition[i].split("/")
+                attr.insert(1, "/")
+                if not isJoin:
+                    df_result = doJoin(joinCon, dataDict, tableprefixList, attributeList)
+                    isJoin = True
+                condition[i] = conditionToPandas(attr, True)
+                attrSub.add(condition[i])
+
         handleCondition(condition)
         checkNotCondition(condition)
-        print("attrSub: ", attrSub)
-        print(condition)
+        # print("attrSub: ", attrSub)
+        # print(condition)
         if "|" in condition:
             IsOr = True
         for i in range(len(condition)):
@@ -457,10 +412,7 @@ while True:
                         print("<<filter>>", expr)
                         for t in tableprefixList:
                             if conList[0] in attrDict[t]:
-                                print(dataDict[t])
                                 dataDict[t] = dataDict[t][eval(expr)]
-                                print("<<filter>>", len(dataDict[t]))
-                                # print(dataDict[t])
                                 break
                     else:
                         if len(joinCon) != 0:
@@ -489,10 +441,7 @@ while True:
                         print("<<filter>>", expr)
                         for t in tableprefixList:
                             if conList[0] in attrDict[t]:
-                                print(dataDict[t])
                                 dataDict[t] = dataDict[t][eval(expr)]
-                                print("<<filter>>", len(dataDict[t]))
-                                # print(dataDict[t])
                                 break
                     else:
                         if len(joinCon) != 0:
@@ -522,10 +471,7 @@ while True:
                 print("<<filter>>", expr)
                 for t in tableprefixList:
                     if conList[0] in attrDict[t]:
-                        print(dataDict[t])
                         dataDict[t] = dataDict[t][eval(expr)]
-                        print("<<filter>>", len(dataDict[t]))
-                        # print(dataDict[t])
                         break
             else:
                 if len(joinCon) != 0:
@@ -546,25 +492,15 @@ while True:
         if not isJoin:
             df_result = doJoin(joinCon, dataDict, tableprefixList, attributeList)
     else:
-        print("one table")
-        for df in dataDict.values():
-            print('df', len(df))
-            df = (df).assign(key=0)
-            print("--- %s seconds ---" % (time.time() - start_time))
-            try:
-                df_result = df_result.merge(df, how='outer', on='key')
-                # df_result.drop('key', 1, inplace=True)
-            except:
-                df_result = df
+        df_result = dataDict[tableprefixList[0]]
 
-    print('df_result', df_result.columns)
-    print('df_result len', len(df_result))
+    # print('df_result', df_result.columns)
 
     if cond_str != "":
         df_result = df_result[eval(cond_str)]
 
-
-    print('select attributes', colList)
+    print()
+    # print('select attributes', colList)
     #SELECT: Get the column(attributes) from file
     if colList == ['*']:
         if getDistinct:
@@ -591,6 +527,7 @@ while True:
             print(df_result[result_attr])
             print("number of lines:", len(df_result))
         print("--- %s seconds ---" % (time.time() - start_time))
+        print()
 
 # select Date from nasdaq.csv where Open <= 5000 or High < 5200
 # select Date from nasdaq.csv, euro50.csv

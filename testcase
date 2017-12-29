@@ -2,7 +2,7 @@
 Q1
 SELECT movie_title,title_year,imdb_score FROM movies.csv WHERE movie_title LIKE '%Kevin%' AND imdb_score > 7
 
-Q2 ...not work
+Q2
 SELECT M.title_year,M.movie_title,A.Award,M.imdb_score,M.movie_facebook_likes FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE A.Winner = 1 AND ( M.imdb_score < 6 OR M.movie_facebook_likes < 10000 )
 
 Q3
@@ -46,12 +46,12 @@ Q14
 SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7
 
 Q15
-SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry_Potter%'
+SELECT movie_title,imdb_score FROM movies.csv WHERE movie_title LIKE '%Harry Potter%'
 
 Q16
 SELECT title_year,movie_title,Award,imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE NOT ( M.imdb_score < 7 OR  M.title_year > 2000 )
 
-Q17 ...not work
+Q17
 SELECT M.title_year,M.movie_title,A.Award,M.imdb_score FROM movies.csv M JOIN oscars.csv A ON M.movie_title = A.Film WHERE M.imdb_score < 7 OR M.title_year > 2000
 
 Q18
