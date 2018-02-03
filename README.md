@@ -1,7 +1,7 @@
-Ad-hoc-Data-Computing
+Ad-hoc Data Computing
 =================================
 The project is designed for UIUC Fall 2017 Course CS411 Database Systems 
-Perform SQL queries on CSVs data.
+Perform SQL queries on CSVs data without loading CSVs into a database.
 
 Prerequisite
 -----------
@@ -10,12 +10,12 @@ pip or other kinds of installation tools should be installed
 
 Installation
 -----------
-sudo pip install pandas
+sudo pip install pandas  
 sudo pip install feather
 
 Run
 -----------
-Python3 merge.py
+python3 query.py
 
 Syntax
 -----------
